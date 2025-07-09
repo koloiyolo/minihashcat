@@ -38,6 +38,7 @@ For now it supports:
 Algorithms:
 * [x] MD2
 * [x] MD4
+* [ ] MD5
 * [x] SHA-2 256
 * [x] SHA-2 384
 * [x] SHA-2 512
