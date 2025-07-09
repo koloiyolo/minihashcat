@@ -9,9 +9,10 @@ pub trait Hasher {
     /// Returns name of the hash algorithm
     fn name(&self) -> &'static str;
 
+    /// Compares hash of the provided text with provided hash. Returns bool
     fn compare_hash(&self, text: &[u8], hash: &String) -> bool {
         let hashed_text = hex::encode(self.hash(text));
-        if hashed_text == *hash { true } else { false }
+        hashed_text == *hash
     }
 }
 
