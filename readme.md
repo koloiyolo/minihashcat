@@ -21,7 +21,7 @@ If You'd like to use a `wordlist` run:
 ./minihashcat example.txt -w your_wordlist_file.txt
 ```
 
-Example file contains greeting in polish 😉
+    Example file contains greeting in polish 😉
 
 If You want to write your result to file You can do:
 ```bash
@@ -31,6 +31,23 @@ If You want to write your result to file You can do:
 For list of optional arguments and defaults use:
 ```bash
 ./minihashcat --help
+```
+
+```
+Usage: minihashcat [OPTIONS] <HASH_FILE>
+
+Arguments:
+  <HASH_FILE>  File containing hash to compare to Supported extensions: *.txt
+
+Options:
+  -t, --threads <THREADS>              Number of threads used for hashing [default: std::threads::available_parallelism() - 1]
+  -w, --wordlist-file <WORDLIST_FILE>  File containing wordlist. Supported extensions: *.txt
+  -a, --algorithm <ALGORITHM>          Algorithm used for hashing. [default: SHA-2 256]
+      --min <MIN>                      Minium length of cracked String [default: 4]
+      --max <MAX>                      Maximum length of cracked String [default: 16]
+  -v, --verbose <VERBOSE>              Does program have to run in verbose mode. [supported: Yes / No] [default: Yes]
+  -h, --help                           Print help
+  -V, --version                        Print version
 ```
 
 ### Current state
