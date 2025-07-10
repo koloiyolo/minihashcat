@@ -5,25 +5,29 @@ Simple `hashcat` clone.
 CLI Rust program that imitates `hashcat` that was written as part of mu Rust learning journey.\
 It is not a part of any guide or anything like that, it is a personal goal.
 
-### Example
-To run this program simply use:
-
-before compiling
+### Examples
+First You need to compile this program:
 ```bash
-cargo run -- example.txt
+cargo build --release
 ```
 
-after compiling
+If You got the binary You can run this for `brute force` mode
 ```bash
 ./minihashcat example.txt
 ```
 
+If You'd like to use a `wordlist` run:
+```bash
+./minihashcat example.txt -w your_wordlist_file.txt
+```
+
 Example file contains greeting in polish 😉
 
-If You want to write to file You can do:
+If You want to write your result to file You can do:
 ```bash
-./minihashcat example.txt > result.txt
+./minihashcat example.txt -v no > result.txt
 ```
+
 For list of optional arguments and defaults use:
 ```bash
 ./minihashcat --help
@@ -33,7 +37,7 @@ For list of optional arguments and defaults use:
 For now it supports:
 * [x] Multithreading
 * [x] BruteForce
-* [ ] Wordlist files
+* [x] Wordlist files
 
 Algorithms:
 * [x] MD2
@@ -51,7 +55,8 @@ This program helped me learn how to handle:
 * Multithreading
 * Error Handling
 * Pattern matching
-* Building and using `trait` in Rust
+* Interface building with `trait`
+* Anonymous functions
 
 The following libraries were used:
 * `clap` for CLI interface

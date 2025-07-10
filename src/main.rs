@@ -6,7 +6,7 @@ use minihashcat::mode::Mode;
 use minihashcat::{
     get_hash_file_contents, get_option_value, get_result_value, next_string, parse_string_to_bool,
 };
-use std::{num::NonZeroUsize, thread};
+use std::{num::NonZeroUsize, thread, time::Duration};
 
 fn main() {
     let args = Cli::parse();
@@ -36,7 +36,7 @@ fn main() {
     if verbose {
         println!("\nHash to crack: {hash}");
         println!("Hashing algorithm: {}", &hasher.name());
-        println!("Mode: {mode:#?}");
+        println!("Mode: {mode:?}");
         println!("Threads: {thread_count}");
         println!("Running...\n");
     }
@@ -49,27 +49,68 @@ fn main() {
 
     let (sender, receiver) = channel::bounded(success_count);
     for i in 0..thread_count {
-        let sender = sender.clone();
-        let algorithm = algorithm.clone();
-        let hash = hash.clone();
-        let min_length = min;
-        let max_length = max;
+        let function: Box<dyn FnOnce() + Send> = match mode {
+            Mode::Wordlist(ref wordlist) => {
+                let sender = sender.clone();
+                let algorithm = algorithm.clone();
+                let hash = hash.clone();
+                let wordlist = wordlist.clone();
+                let slice_len = wordlist.len() / thread_count;
 
-        thread::spawn(move || {
-            let hasher = create_hasher(&algorithm);
-            let min_char = min_char + (i as u8 * thread_len);
-            let mut compared: Vec<u8> = vec![min_char; min_length];
+                let wordlist_fn = move || {
+                    let hasher = create_hasher(&algorithm);
+                    let index = i * slice_len;
+                    let end = if i == thread_count - 1 {
+                        wordlist.len()
+                    } else {
+                        index + slice_len
+                    };
 
-            while compared.len() < max_length {
-                if hasher.compare_hash(&compared, &hash) {
-                    let _ = sender.send(compared);
-                    break;
-                }
-                next_string(&mut compared);
+                    let wordlist_slice = &wordlist[index..end];
+
+                    for word in wordlist_slice {
+                        if hasher.compare_hash(&word.as_bytes(), &hash) {
+                            let _ = sender.send(word.as_bytes().to_vec());
+                            return;
+                        }
+                    }
+                    // Let's other threads to finish
+                    let sleep_duration = Duration::from_secs(5);
+                    thread::sleep(sleep_duration);
+
+                    let not_found_error = "Not Found".as_bytes().to_vec();
+                    let _ = sender.send(not_found_error);
+                };
+
+                Box::new(wordlist_fn)
             }
-            let not_found_error = "Not Found".as_bytes().to_vec();
-            let _ = sender.send(not_found_error);
-        });
+            Mode::BruteForce => {
+                let sender = sender.clone();
+                let algorithm = algorithm.clone();
+                let hash = hash.clone();
+                let min_length = min;
+                let max_length = max;
+
+                let brute_force_fn = move || {
+                    let hasher = create_hasher(&algorithm);
+                    let min_char = min_char + (i as u8 * thread_len);
+                    let mut compared: Vec<u8> = vec![min_char; min_length];
+
+                    while compared.len() < max_length {
+                        if hasher.compare_hash(&compared, &hash) {
+                            let _ = sender.send(compared);
+                            break;
+                        }
+                        next_string(&mut compared);
+                    }
+                    let not_found_error = "Not Found".as_bytes().to_vec();
+                    let _ = sender.send(not_found_error);
+                };
+                Box::new(brute_force_fn)
+            }
+        };
+
+        thread::spawn(function);
     }
 
     match receiver.recv() {
