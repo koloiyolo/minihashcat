@@ -69,7 +69,7 @@ fn main() {
                     let wordlist_slice = &wordlist[index..end];
 
                     for word in wordlist_slice {
-                        if hasher.compare_hash(&word.as_bytes(), &hash) {
+                        if hasher.compare_hash(word.as_bytes(), &hash) {
                             let _ = sender.send(word.as_bytes().to_vec());
                             return;
                         }

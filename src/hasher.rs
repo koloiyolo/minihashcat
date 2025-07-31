@@ -128,8 +128,7 @@ impl Hasher for Sha3_512Hasher {
     }
 }
 
-pub fn create_hasher(name: &String) -> Box<dyn Hasher> {
-    let name = &name[..];
+pub fn create_hasher(name: &str) -> Box<dyn Hasher> {
     match name.to_lowercase().as_str() {
         "sha2_256" | "sha256" => Box::new(Sha256Hasher),
         "sha2_384" | "sha384" => Box::new(Sha384Hasher),

@@ -56,10 +56,7 @@ pub fn next_string(s: &mut Vec<u8>) {
 /// Parses Yes / No CLI answers into bool
 pub fn parse_string_to_bool(input: String) -> bool {
     let input = &input.to_lowercase()[..];
-    match input {
-        "no" | "n" | "false" => false,
-        _ => true,
-    }
+    !matches!(input, "no" | "n" | "false")
 }
 
 #[cfg(test)]
