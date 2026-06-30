@@ -3,9 +3,7 @@ use crossbeam::channel;
 use minihashcat::cli::Cli;
 use minihashcat::hasher::*;
 use minihashcat::mode::Mode;
-use minihashcat::{
-    get_hash_file_contents, get_option_value, get_result_value, next_string, parse_string_to_bool,
-};
+use minihashcat::{get_hash_file_contents, next_string, parse_string_to_bool};
 use std::{num::NonZeroUsize, thread, time::Duration};
 
 fn main() {
@@ -20,16 +18,13 @@ fn main() {
     let verbose = parse_string_to_bool(args.verbose);
 
     let hash = get_hash_file_contents(hash_file);
-    let algorithm = get_option_value(algorithm, "".to_string());
+    let algorithm = algorithm.unwrap_or("".to_string());
     let mode = Mode::new(wordlist_file);
     let hasher = create_hasher(&algorithm);
-    let thread_count = get_option_value(
-        threads,
-        get_result_value(
-            thread::available_parallelism(),
-            NonZeroUsize::new(1).unwrap(),
-        )
-        .get()
+    let thread_count = threads.unwrap_or(
+        thread::available_parallelism()
+            .unwrap_or(NonZeroUsize::new(1).expect("const context"))
+            .get()
             - 1,
     );
 
@@ -120,7 +115,7 @@ fn main() {
             }
             println!(
                 "{}",
-                String::from_utf8(result).unwrap_or_else(|e| (format!("\nParsing Error {e}")))
+                String::from_utf8(result).unwrap_or_else(|e| format!("\nParsing Error {e}"))
             );
         }
         Err(_) => {
