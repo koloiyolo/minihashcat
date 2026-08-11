@@ -3,8 +3,9 @@ use crossbeam::channel;
 use minihashcat::cli::Cli;
 use minihashcat::hasher::*;
 use minihashcat::mode::Mode;
-use minihashcat::{get_hash_file_contents, next_string, parse_string_to_bool};
-use std::{num::NonZeroUsize, thread, time::Duration};
+use minihashcat::{get_hash_file_contents, parse_string_to_bool};
+use std::sync::Arc;
+use std::{num::NonZeroUsize, thread};
 
 fn main() {
     let args = Cli::parse();
@@ -20,12 +21,12 @@ fn main() {
     let hash = get_hash_file_contents(hash_file);
     let algorithm = algorithm.unwrap_or("".to_string());
     let mode = Mode::new(wordlist_file);
-    let hasher = create_hasher(&algorithm);
+    let hasher = Arc::new(HasherHandler::from(algorithm.as_str()));
     let thread_count = threads.unwrap_or(
         thread::available_parallelism()
             .unwrap_or(NonZeroUsize::new(1).expect("const context"))
             .get()
-            - 1,
+            / 2,
     );
 
     if verbose {
@@ -36,79 +37,34 @@ fn main() {
         println!("Running...\n");
     }
 
-    let min_char = b'A';
-    let max_char = b'z';
-    let slice_len = max_char - min_char;
-    let thread_len = slice_len / thread_count as u8;
     let success_count = 1;
 
-    let (sender, receiver) = channel::bounded(success_count);
-    for i in 0..thread_count {
+    let (stop_sender, stop_receiver) = channel::bounded(success_count);
+    for thread_id in 0..thread_count {
         let function: Box<dyn FnOnce() + Send> = match mode {
-            Mode::Wordlist(ref wordlist) => {
-                let sender = sender.clone();
-                let algorithm = algorithm.clone();
-                let hash = hash.clone();
-                let wordlist = wordlist.clone();
-                let slice_len = wordlist.len() / thread_count;
-
-                let wordlist_fn = move || {
-                    let hasher = create_hasher(&algorithm);
-                    let index = i * slice_len;
-                    let end = if i == thread_count - 1 {
-                        wordlist.len()
-                    } else {
-                        index + slice_len
-                    };
-
-                    let wordlist_slice = &wordlist[index..end];
-
-                    for word in wordlist_slice {
-                        if hasher.compare_hash(word.as_bytes(), &hash) {
-                            let _ = sender.send(word.as_bytes().to_vec());
-                            return;
-                        }
-                    }
-                    // Let's other threads to finish
-                    let sleep_duration = Duration::from_secs(5);
-                    thread::sleep(sleep_duration);
-
-                    let not_found_error = "Not Found".as_bytes().to_vec();
-                    let _ = sender.send(not_found_error);
-                };
-
-                Box::new(wordlist_fn)
-            }
-            Mode::BruteForce => {
-                let sender = sender.clone();
-                let algorithm = algorithm.clone();
-                let hash = hash.clone();
-                let min_length = min;
-                let max_length = max;
-
-                let brute_force_fn = move || {
-                    let hasher = create_hasher(&algorithm);
-                    let min_char = min_char + (i as u8 * thread_len);
-                    let mut compared: Vec<u8> = vec![min_char; min_length];
-
-                    while compared.len() < max_length {
-                        if hasher.compare_hash(&compared, &hash) {
-                            let _ = sender.send(compared);
-                            break;
-                        }
-                        next_string(&mut compared);
-                    }
-                    let not_found_error = "Not Found".as_bytes().to_vec();
-                    let _ = sender.send(not_found_error);
-                };
-                Box::new(brute_force_fn)
-            }
+            Mode::Wordlist(ref wordlist_contents) => Mode::word_list_crack_hash_fn(
+                wordlist_contents.clone(),
+                hasher.clone(),
+                hash.clone(),
+                thread_id,
+                thread_count,
+                stop_sender.clone(),
+            ),
+            Mode::BruteForce => Mode::brute_force_crack_hash_fn(
+                hasher.clone(),
+                hash.clone(),
+                min,
+                max,
+                thread_id as u8,
+                thread_count,
+                stop_sender.clone(),
+            ),
         };
 
         thread::spawn(function);
     }
 
-    match receiver.recv() {
+    match stop_receiver.recv() {
         Ok(result) => {
             if verbose {
                 println!("Result:")
