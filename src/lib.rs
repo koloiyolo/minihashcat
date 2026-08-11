@@ -5,14 +5,16 @@ pub mod mode;
 
 /// If Result is Ok returns value, else handles error and returns default value.
 /// Removes `\n` sign if found
-/// ### Panic
-/// When file doesn't exist.
+///
+/// ## Panics
+///
+/// When the file doesn't exist.
 pub fn get_hash_file_contents(path: String) -> String {
     match fs::read_to_string(&path) {
         Ok(v) => v.replace("\n", ""),
         Err(e) => {
             eprintln!("{e:?}");
-            println!("Failed to fetch {path} contents");
+            eprintln!("Failed to fetch {path} contents");
             process::exit(1);
         }
     }

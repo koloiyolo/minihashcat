@@ -128,16 +128,31 @@ impl Hasher for Sha3_512Hasher {
     }
 }
 
-pub fn create_hasher(name: &str) -> Box<dyn Hasher> {
-    match name.to_lowercase().as_str() {
-        "sha2_256" | "sha256" => Box::new(Sha256Hasher),
-        "sha2_384" | "sha384" => Box::new(Sha384Hasher),
-        "sha2_512" | "sha512" => Box::new(Sha512Hasher),
-        "sha3_256" => Box::new(Sha3_256Hasher),
-        "sha3_384" => Box::new(Sha3_384Hasher),
-        "sha3_512" => Box::new(Sha3_512Hasher),
-        "md2" => Box::new(Md2Hasher),
-        "md4" => Box::new(Md4Hasher),
-        _ => Box::new(Sha256Hasher),
+pub struct HasherHandler(Box<dyn Hasher + Send + Sync>);
+
+impl From<&str> for HasherHandler {
+    fn from(value: &str) -> Self {
+        let hasher: Box<dyn Hasher + Send + Sync> = match value.to_lowercase().as_str() {
+            "sha2_256" | "sha256" => Box::new(Sha256Hasher),
+            "sha2_384" | "sha384" => Box::new(Sha384Hasher),
+            "sha2_512" | "sha512" => Box::new(Sha512Hasher),
+            "sha3_256" => Box::new(Sha3_256Hasher),
+            "sha3_384" => Box::new(Sha3_384Hasher),
+            "sha3_512" => Box::new(Sha3_512Hasher),
+            "md2" => Box::new(Md2Hasher),
+            "md4" => Box::new(Md4Hasher),
+            _ => Box::new(Sha256Hasher),
+        };
+        HasherHandler(hasher)
+    }
+}
+
+impl Hasher for HasherHandler {
+    fn hash(&self, input: &[u8]) -> Vec<u8> {
+        self.0.hash(input)
+    }
+
+    fn name(&self) -> &'static str {
+        self.0.name()
     }
 }
