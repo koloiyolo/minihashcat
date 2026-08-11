@@ -30,7 +30,7 @@ fn main() {
 
     if verbose {
         println!("\nHash to crack: {hash}");
-        println!("Hashing algorithm: {}", &hasher.name());
+        println!("Hashing algorithm: {}", hasher.name());
         println!("Mode: {mode:?}");
         println!("Threads: {thread_count}");
         println!("Running...\n");
@@ -113,13 +113,13 @@ fn main() {
             if verbose {
                 println!("Result:")
             }
-            println!(
-                "{}",
-                String::from_utf8(result).unwrap_or_else(|e| format!("\nParsing Error {e}"))
-            );
+            match String::from_utf8(result) {
+                Ok(value) => println!("{value}"),
+                Err(e) => eprintln!("Parsing Error {e}"),
+            }
         }
-        Err(_) => {
-            println!("No thread succeeded.");
+        Err(e) => {
+            eprintln!("No thread succeeded. {e}");
         }
     }
 }
