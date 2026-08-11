@@ -10,7 +10,7 @@ pub trait Hasher {
     fn name(&self) -> &'static str;
 
     /// Compares hash of the provided text with provided hash. Returns bool
-    fn compare_hash(&self, text: &[u8], hash: &String) -> bool {
+    fn compare_hash(&self, text: &[u8], hash: &str) -> bool {
         let hashed_text = hex::encode(self.hash(text));
         hashed_text == *hash
     }
