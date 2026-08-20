@@ -3,12 +3,12 @@ use std::{fs, sync::Arc, thread, time::Duration};
 use crossbeam::channel::Sender;
 
 use crate::{
+    MAX_CHAR, MIN_CHAR,
+    errors::MiniHashcatError,
     hasher::{Hasher, HasherHandler},
     next_string,
 };
 
-const MIN_CHAR: u8 = b'A';
-const MAX_CHAR: u8 = b'z';
 const CHAR_SLICE_LEN: u8 = MAX_CHAR - MIN_CHAR;
 
 pub enum Mode {
@@ -19,22 +19,9 @@ pub enum Mode {
 type Contents = Arc<Vec<String>>;
 
 impl Mode {
-    pub fn new(path: Option<String>) -> Self {
-        match path {
-            Some(path) => {
-                let contents = fs::read_to_string(&path);
-                match contents {
-                    Ok(contents) => Mode::Wordlist(string_to_vec(contents)),
-                    Err(e) => panic!("Failed to read file {path}.\nError: {e}"),
-                }
-            }
-            None => Self::BruteForce,
-        }
-    }
-
     pub fn brute_force_crack_hash_fn(
         hasher: Arc<HasherHandler>,
-        hash: String,
+        hash: Arc<Vec<u8>>,
         min_length: usize,
         max_length: usize,
         thread_id: u8,
@@ -47,7 +34,7 @@ impl Mode {
             let mut compared: Vec<u8> = vec![min_char; min_length];
 
             while compared.len() < max_length {
-                if hasher.compare_hash(&compared, &hash) {
+                if hasher.compare_hash(&compared, hash.as_slice()) {
                     let _ = stop_sender.send(compared);
                     break;
                 }
@@ -62,7 +49,7 @@ impl Mode {
     pub fn word_list_crack_hash_fn(
         wordlist_contents: Contents,
         hasher: Arc<HasherHandler>,
-        hash: String,
+        hash: Arc<Vec<u8>>,
         thread_id: usize,
         thread_count: usize,
         stop_sender: Sender<Vec<u8>>,
@@ -78,7 +65,7 @@ impl Mode {
             let wordlist_slice = &wordlist_contents[index..end];
 
             for word in wordlist_slice {
-                if hasher.compare_hash(word.as_bytes(), &hash) {
+                if hasher.compare_hash(word.as_bytes(), hash.as_slice()) {
                     let _ = stop_sender.send(word.as_bytes().to_vec());
                     return;
                 }
@@ -95,6 +82,22 @@ impl Mode {
     }
 }
 
+impl TryFrom<Option<String>> for Mode {
+    type Error = MiniHashcatError;
+
+    fn try_from(value: Option<String>) -> Result<Self, Self::Error> {
+        match value {
+            Some(path) => {
+                let contents = fs::read_to_string(&path)
+                    .map_err(|_| MiniHashcatError::fine_not_found(path))?;
+                Ok(Mode::Wordlist(string_to_vec(contents)))
+            }
+            None => Ok(Self::BruteForce),
+        }
+    }
+}
+
+#[cfg(not(tarpaulin_include))]
 impl std::fmt::Debug for Mode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -111,4 +114,21 @@ impl std::fmt::Debug for Mode {
 /// Parses provided [String] value and parses it into [Mode::Wordlist] contents.
 fn string_to_vec(string: String) -> Contents {
     Arc::new(string.lines().map(|line| line.to_string()).collect())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_mode_constructor() {
+        let value = None;
+        assert!(matches!(Mode::try_from(value), Ok(Mode::BruteForce)));
+
+        let value = Some("example.txt".to_string());
+        assert!(matches!(Mode::try_from(value), Ok(Mode::Wordlist(_))));
+
+        let value = Some("invalid_example.txt".to_string());
+        assert!(Mode::try_from(value).is_err());
+    }
 }

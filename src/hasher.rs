@@ -10,9 +10,9 @@ pub trait Hasher {
     fn name(&self) -> &'static str;
 
     /// Compares hash of the provided text with provided hash. Returns bool
-    fn compare_hash(&self, text: &[u8], hash: &str) -> bool {
-        let hashed_text = hex::encode(self.hash(text));
-        hashed_text == *hash
+    fn compare_hash(&self, text: &[u8], hash: &[u8]) -> bool {
+        let text = self.hash(text);
+        text.eq(hash)
     }
 }
 
@@ -154,5 +154,21 @@ impl Hasher for HasherHandler {
 
     fn name(&self) -> &'static str {
         self.0.name()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sha256_check() {
+        let hash = hex::decode("32cdb619196200050ab0af581a10fb83cfc63b1a20f58d4bafb6313d55a3f0e9")
+            .unwrap();
+        let hasher = HasherHandler::from("sha256");
+
+        let output = hasher.hash("cake".as_bytes());
+        assert_eq!(hash, output);
+        assert!(hasher.compare_hash("cake".as_bytes(), &hash));
     }
 }

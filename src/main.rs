@@ -7,6 +7,7 @@ use minihashcat::{get_hash_file_contents, parse_string_to_bool};
 use std::sync::Arc;
 use std::{num::NonZeroUsize, thread};
 
+#[cfg(not(tarpaulin_include))]
 fn main() {
     let args = Cli::parse();
     // Extract args
@@ -16,11 +17,11 @@ fn main() {
     let threads = args.threads;
     let min = args.min;
     let max = args.max + 1;
-    let verbose = parse_string_to_bool(args.verbose);
+    let verbose = parse_string_to_bool(&args.verbose);
 
-    let hash = get_hash_file_contents(hash_file);
+    let hash = get_hash_file_contents(&hash_file).expect("I/O Error. File not found");
+    let mode = Mode::try_from(wordlist_file).expect("I/O Error. File not found");
     let algorithm = algorithm.unwrap_or("".to_string());
-    let mode = Mode::new(wordlist_file);
     let hasher = Arc::new(HasherHandler::from(algorithm.as_str()));
     let thread_count = threads.unwrap_or(
         thread::available_parallelism()
@@ -36,7 +37,7 @@ fn main() {
         println!("Threads: {thread_count}");
         println!("Running...\n");
     }
-
+    let hash = Arc::new(hex::decode(hash).expect("Invalid hash").to_vec());
     let success_count = 1;
 
     let (stop_sender, stop_receiver) = channel::bounded(success_count);

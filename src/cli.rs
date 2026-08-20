@@ -23,7 +23,7 @@ pub struct Cli {
     pub algorithm: Option<String>,
 
     /// Minium length of cracked String.
-    #[arg(long, default_value_t = 4)]
+    #[arg(long, default_value_t = 3)]
     pub min: usize,
 
     /// Maximum length of cracked String.
