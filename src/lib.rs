@@ -22,20 +22,42 @@ pub fn get_hash_file_contents(path: &str) -> Result<String, MiniHashcatError> {
     }
 }
 
-/// Generates new string based on pervious value in sequence
-pub fn next_string(s: &mut Vec<u8>) {
+/// Generates the next string in sequence.
+///
+/// The first character is kept in the inclusive `first_min..=first_max`
+/// range. All following characters use the global `MIN_CHAR..=MAX_CHAR`
+/// range. When the current length is exhausted, the next length starts with
+/// `first_min` followed by `MIN_CHAR` values.
+pub fn next_string(s: &mut Vec<u8>, first_min: u8, first_max: u8) {
+    debug_assert!(
+        MIN_CHAR <= first_min && first_min <= first_max && first_max <= MAX_CHAR,
+        "first-character range must be inside MIN_CHAR..=MAX_CHAR"
+    );
+
+    if s.is_empty() {
+        s.push(first_min);
+        return;
+    }
+
+    // Increment the suffix first. The first character has its own range.
     let mut i = s.len();
-    while i > 0 {
+    while i > 1 {
         i -= 1;
         if s[i] < MAX_CHAR {
             s[i] += 1;
             return;
-        } else {
-            s[i] = MIN_CHAR;
         }
+        s[i] = MIN_CHAR;
     }
-    // All characters were 'z', need to add new 'A' at the front
-    s.insert(0, MIN_CHAR);
+
+    if s[0] < first_max {
+        s[0] += 1;
+        return;
+    }
+
+    // The local first-character range is exhausted at this length.
+    s[0] = first_min;
+    s.insert(1, MIN_CHAR);
 }
 
 /// Parses Yes / No CLI answers into bool
@@ -77,16 +99,27 @@ mod tests {
     #[test]
     fn test_next_string() {
         let mut s = b"AA".to_vec();
-        next_string(&mut s);
+        next_string(&mut s, MIN_CHAR, MAX_CHAR);
         assert_eq!(s, b"AB");
 
         let mut s = b"AZ".to_vec();
-        next_string(&mut s);
+        next_string(&mut s, MIN_CHAR, MAX_CHAR);
         assert_eq!(s, b"A[");
 
         let mut s = b"ZZ".to_vec();
-        next_string(&mut s);
+        next_string(&mut s, MIN_CHAR, MAX_CHAR);
         assert_eq!(s, b"Z[");
+    }
+
+    #[test]
+    fn test_next_string_with_first_character_range() {
+        let mut s = b"Lzz".to_vec();
+        next_string(&mut s, b'L', b'V');
+        assert_eq!(s, b"MAA");
+
+        let mut s = b"Vzz".to_vec();
+        next_string(&mut s, b'L', b'V');
+        assert_eq!(s, b"LAAA");
     }
 
     #[test]

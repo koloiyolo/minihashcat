@@ -9,7 +9,7 @@ use crate::{
     next_string,
 };
 
-const CHAR_SLICE_LEN: u8 = MAX_CHAR - MIN_CHAR;
+const CHARSET_LEN: usize = (MAX_CHAR - MIN_CHAR + 1) as usize;
 
 pub enum Mode {
     Wordlist(Contents),
@@ -24,21 +24,27 @@ impl Mode {
         hash: Arc<Vec<u8>>,
         min_length: usize,
         max_length: usize,
-        thread_id: u8,
+        thread_id: usize,
         thread_count: usize,
         stop_sender: Sender<Vec<u8>>,
     ) -> Box<dyn FnOnce() + Send> {
-        let thread_len = CHAR_SLICE_LEN / thread_count as u8;
+        let first_start = thread_id * CHARSET_LEN / thread_count;
+        let first_end = (thread_id + 1) * CHARSET_LEN / thread_count;
+        let first_min = MIN_CHAR + first_start as u8;
+        let first_max = MIN_CHAR + (first_end - 1) as u8;
+
         let brute_force_fn = move || {
-            let min_char = MIN_CHAR + (thread_id * thread_len);
-            let mut compared: Vec<u8> = vec![min_char; min_length];
+            let mut compared = vec![MIN_CHAR; min_length];
+            if let Some(first) = compared.first_mut() {
+                *first = first_min;
+            }
 
             while compared.len() < max_length {
                 if hasher.compare_hash(&compared, hash.as_slice()) {
                     let _ = stop_sender.send(compared);
                     break;
                 }
-                next_string(&mut compared);
+                next_string(&mut compared, first_min, first_max);
             }
             let not_found_error = "Not Found".as_bytes().to_vec();
             let _ = stop_sender.send(not_found_error);
@@ -55,11 +61,11 @@ impl Mode {
         stop_sender: Sender<Vec<u8>>,
     ) -> Box<dyn FnOnce() + Send> {
         let wordlist_fn = move || {
-            let index = thread_id * CHAR_SLICE_LEN as usize;
+            let index = thread_id * CHARSET_LEN;
             let end = if thread_id == thread_count - 1 {
                 wordlist_contents.len()
             } else {
-                index + CHAR_SLICE_LEN as usize
+                index + CHARSET_LEN
             };
 
             let wordlist_slice = &wordlist_contents[index..end];

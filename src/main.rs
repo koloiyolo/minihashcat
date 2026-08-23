@@ -56,7 +56,7 @@ fn main() {
                 hash.clone(),
                 min,
                 max,
-                thread_id as u8,
+                thread_id,
                 thread_count,
                 stop_sender.clone(),
             ),
