@@ -10,7 +10,7 @@ hex = "0.4.3"
 md2 = "0.11.0"
 md4 = "0.11.0"
 sha2 = "0.11.0"
-sha3 = "0.11.0"
+sha3 = "0.12.0"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ["cfg(tarpaulin_include)"] }
